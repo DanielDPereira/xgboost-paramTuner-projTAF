@@ -1065,6 +1065,10 @@
             </tr>`;
             });
 
+            if (!classRows.length) binTbody.innerHTML = '<tr><td colspan="7">Nenhum dado.</td></tr>';
+            if (!regRows.length) contTbody.innerHTML = '<tr><td colspan="7">Nenhum dado.</td></tr>';
+        }
+
         function renderLeaderboard() {
             const fAero = document.getElementById('aeroSelect').value;
             const fTarget = document.getElementById('targetSelect').value;
@@ -1109,10 +1113,6 @@
             }
             html += '</table>';
             lb.innerHTML = html;
-        }
-
-            if (!classRows.length) binTbody.innerHTML = '<tr><td colspan="7">Nenhum dado.</td></tr>';
-            if (!regRows.length) contTbody.innerHTML = '<tr><td colspan="7">Nenhum dado.</td></tr>';
         }
 
         function updateScoreUI(circleId, deltaId, score, prevScore) {
