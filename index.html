@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XGBoost Dashboard - Analytics Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --primary: #0f172a; --secondary: #3b82f6; --bg: #f8fafc; --card-bg: #ffffff;
+            --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
+            --good-bg: #dcfce7; --good-text: #166534; --good-border: #22c55e;
+            --warn-bg: #fef08a; --warn-text: #854d0e; --warn-border: #eab308;
+            --bad-bg: #fee2e2; --bad-text: #991b1b; --bad-border: #ef4444;
+            --treino: #e2e8f0; --validacao: #dbeafe; --teste: #f3e8ff;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; margin: 0; }
+        .container { max-width: 1450px; margin: 0 auto; }
+        
+        .upload-section { background: var(--card-bg); padding: 30px; border-radius: 8px; border: 2px dashed var(--secondary); text-align: center; margin-bottom: 20px; transition: 0.3s; }
+        .upload-section:hover { background: #eff6ff; }
+        
+        /* Controles */
+        .controls-card { background: var(--card-bg); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .nav-group { display: flex; gap: 10px; flex: 1; min-width: 300px;}
+        .filter-group { display: flex; gap: 15px; align-items: center; border-left: 2px solid var(--border); padding-left: 15px; flex-wrap: wrap;}
+        
+        select { padding: 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 14px; font-weight: 500; cursor: pointer; background-color: #fff;}
+        button.nav-btn { padding: 10px 15px; background: var(--secondary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;}
+        button.nav-btn:hover { background: #2563eb; }
+        button.nav-btn:disabled { background: var(--text-light); cursor: not-allowed; }
+
+        /* SCORING BOARD */
+        .score-board { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;}
+        .score-card { flex: 1; min-width: 300px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative;}
+        .score-title { font-size: 16px; color: var(--text-light); text-transform: uppercase; font-weight: bold; letter-spacing: 1px; margin-bottom: 15px;}
+        .score-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; font-size: 32px; font-weight: 900; border: 8px solid var(--border); transition: 0.5s all; position: relative;}
+        
+        .score-delta { position: absolute; bottom: -10px; background: white; padding: 2px 8px; border-radius: 12px; font-size: 14px; font-weight: bold; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+        .delta-up { color: var(--good-border); }
+        .delta-down { color: var(--bad-border); }
+        .delta-neutral { color: var(--text-light); }
+
+        .score-good { border-color: var(--good-border); color: var(--good-border); background: var(--good-bg); }
+        .score-warn { border-color: var(--warn-border); color: var(--warn-border); background: var(--warn-bg); }
+        .score-bad { border-color: var(--bad-border); color: var(--bad-border); background: var(--bad-bg); }
+
+        /* Evolution Chart */
+        .evolution-card { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .evolution-wrapper { height: 250px; width: 100%; }
+
+        /* Gráficos de Barras */
+        .charts-container { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;}
+        .chart-box { flex: 1; min-width: 400px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .chart-wrapper { position: relative; height: 250px; width: 100%; }
+
+        /* Grid de Parâmetros */
+        .params-container { display: flex; gap: 20px; margin-bottom: 30px; flex-wrap: wrap;}
+        .params-box { flex: 1; min-width: 400px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .params-title { font-size: 16px; font-weight: bold; color: var(--primary); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;}
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+        .param-card { background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border); transition: 0.3s;}
+        .param-changed { background-color: var(--warn-bg); border-color: var(--warn-border); }
+        .param-label { font-size: 11px; color: var(--text-light); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+        .param-value { font-size: 16px; font-weight: bold; margin-top: 4px; color: var(--primary);}
+        .changed-icon { font-size: 10px; float: right; color: var(--warn-text); }
+
+        /* Tabelas */
+        .section-title { margin-top: 20px; margin-bottom: 15px; font-size: 18px; font-weight: bold; color: var(--primary); display: flex; justify-content: space-between; align-items: center;}
+        .table-container { overflow-x: auto; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); }
+        th.sortable { background-color: #f1f5f9; font-weight: 600; color: var(--primary); cursor: pointer; user-select: none;}
+        th.sortable:hover { background-color: #e2e8f0; }
+        .sort-icon { display: inline-block; margin-left: 5px; font-size: 12px; color: var(--text-light); }
+        .sort-active { color: var(--secondary); font-weight: 900; }
+        tr:hover { background-color: #f8fafc; }
+
+        /* Badges */
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge.bom { background: var(--good-bg); color: var(--good-text); }
+        .badge.alerta { background: var(--warn-bg); color: var(--warn-text); }
+        .badge.ruim { background: var(--bad-bg); color: var(--bad-text); }
+        .badge-conjunto { padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; border: 1px solid var(--border);}
+        .badge-validacao { background-color: var(--validacao); color: #1e40af; border-color: #bfdbfe;}
+        .badge-teste { background-color: var(--teste); color: #6b21a8; border-color: #e9d5ff;}
+        .ratio-bar-container { width: 100%; background: #e2e8f0; height: 6px; border-radius: 3px; margin-top: 5px; }
+        .ratio-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease-in-out;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🚀 Analytics de Evolução (XGBoost)</h1>
+
+    <div class="upload-section" id="uploadSec">
+        <label for="csvFileInput" style="display: block; font-size: 18px; font-weight: bold; margin-bottom: 10px; cursor: pointer;">📂 Importar Histórico de Lotes (.csv)</label>
+        <input type="file" id="csvFileInput" accept=".csv" style="font-size: 16px; padding: 10px;">
+    </div>
+
+    <div id="mainDashboard" style="display: none;">
+        
+        <div class="evolution-card">
+            <div class="params-title">📈 Histórico de Evolução Global (Médias por Lote)</div>
+            <div class="evolution-wrapper"><canvas id="evolutionChart"></canvas></div>
+        </div>
+
+        <div class="controls-card">
+            <div class="nav-group">
+                <button class="nav-btn" id="btnPrev">⬅️ Anterior</button>
+                <select id="executionSelect" style="flex: 2; font-weight: bold;"></select>
+                <button class="nav-btn" id="btnNext">Próximo ➡️</button>
+            </div>
+            <div class="filter-group">
+                <div>
+                    <label style="font-size: 12px; color: var(--text-light); display: block;">Aeródromo</label>
+                    <select id="aeroSelect"><option value="todos">Todos</option></select>
+                </div>
+                <div>
+                    <label style="font-size: 12px; color: var(--text-light); display: block;">Conjunto</label>
+                    <select id="conjuntoSelect">
+                        <option value="todos">Todos</option>
+                        <option value="validacao" selected>Validação</option>
+                        <option value="teste">Teste</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="score-board">
+            <div class="score-card">
+                <div class="score-title">🏆 Score Médio de Classificação</div>
+                <div id="classScoreCircle" class="score-circle">-- <div id="classDelta" class="score-delta"></div></div>
+            </div>
+            <div class="score-card">
+                <div class="score-title">🎯 Score Médio de Regressão</div>
+                <div id="regScoreCircle" class="score-circle">-- <div id="regDelta" class="score-delta"></div></div>
+            </div>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-box">
+                <div class="params-title">📊 Classificação (AUC) - Lote Atual</div>
+                <div class="chart-wrapper"><canvas id="classChart"></canvas></div>
+            </div>
+            <div class="chart-box">
+                <div class="params-title">📉 Regressão (R²) - Lote Atual</div>
+                <div class="chart-wrapper"><canvas id="regChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="params-container">
+            <div class="params-box">
+                <div class="params-title">⚙️ Inputs de Classificação <span style="font-size: 12px; font-weight: normal; margin-left: auto; color: var(--text-light);">Amarelo = Alterado no último lote</span></div>
+                <div class="grid" id="classParamsGrid"></div>
+            </div>
+            <div class="params-box">
+                <div class="params-title">⚙️ Inputs de Regressão</div>
+                <div class="grid" id="regParamsGrid"></div>
+            </div>
+        </div>
+
+        <div class="section-title"><span>📊 Classificação (Detalhes)</span></div>
+        <div class="table-container">
+            <table id="binaryTable">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-type="class" data-col="aerodromo">Aeródromo <span class="sort-icon" id="sort-class-aerodromo">↕</span></th>
+                        <th class="sortable" data-type="class" data-col="target">Target <span class="sort-icon" id="sort-class-target">↕</span></th>
+                        <th class="sortable" data-type="class" data-col="conjunto">Conjunto <span class="sort-icon" id="sort-class-conjunto">↕</span></th>
+                        <th class="sortable" data-type="class" data-col="auc">AUC <span class="sort-icon" id="sort-class-auc">↕</span></th>
+                        <th class="sortable" data-type="class" data-col="f1">F1 <span class="sort-icon" id="sort-class-f1">↕</span></th>
+                        <th>Real vs Predito</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="section-title"><span>📊 Regressão (Detalhes)</span></div>
+        <div class="table-container">
+            <table id="continuousTable">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-type="reg" data-col="aerodromo">Aeródromo <span class="sort-icon" id="sort-reg-aerodromo">↕</span></th>
+                        <th class="sortable" data-type="reg" data-col="target">Target <span class="sort-icon" id="sort-reg-target">↕</span></th>
+                        <th class="sortable" data-type="reg" data-col="conjunto">Conjunto <span class="sort-icon" id="sort-reg-conjunto">↕</span></th>
+                        <th class="sortable" data-type="reg" data-col="mae">MAE <span class="sort-icon" id="sort-reg-mae">↕</span></th>
+                        <th class="sortable" data-type="reg" data-col="rmse">RMSE <span class="sort-icon" id="sort-reg-rmse">↕</span></th>
+                        <th class="sortable" data-type="reg" data-col="r2">R² <span class="sort-icon" id="sort-reg-r2">↕</span></th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let rawData = [];
+    let groupedData = {};
+    let timestamps = [];
+    let currentIndex = 0;
+    
+    let evoChartInst = null, classChartInst = null, regChartInst = null;
+
+    let sortState = { class: { col: 'auc', asc: false }, reg: { col: 'r2', asc: false } };
+    const classImportantParams = ['param_max_depth', 'param_learning_rate', 'param_n_estimators', 'spw', 'param_subsample', 'param_colsample_bytree'];
+    const regImportantParams = ['param_max_depth', 'param_learning_rate', 'param_n_estimators', 'param_reg_lambda', 'param_subsample', 'param_colsample_bytree'];
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById('csvFileInput').addEventListener('change', handleFileUpload);
+        document.getElementById('executionSelect').addEventListener('change', (e) => { currentIndex = e.target.selectedIndex; resetSortAndRender(); });
+        document.getElementById('conjuntoSelect').addEventListener('change', renderDashboard);
+        document.getElementById('aeroSelect').addEventListener('change', renderDashboard);
+        document.getElementById('btnPrev').addEventListener('click', () => changeExecution(-1));
+        document.getElementById('btnNext').addEventListener('click', () => changeExecution(1));
+        
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', (e) => handleSort(e.currentTarget.dataset.type, e.currentTarget.dataset.col));
+        });
+    });
+
+    function handleFileUpload(e) {
+        if (!e.target.files[0]) return;
+        Papa.parse(e.target.files[0], {
+            header: true, dynamicTyping: true, skipEmptyLines: true,
+            complete: function(results) { processData(results.data); }
+        });
+    }
+
+    function processData(data) {
+        rawData = data;
+        groupedData = {};
+        let aerodromos = new Set();
+
+        data.forEach(row => {
+            const time = row.data_teste || 'Desconhecido';
+            if (!groupedData[time]) groupedData[time] = { classRows: [], regRows: [] };
+            
+            if(!row.conjunto) row.conjunto = 'desconhecido';
+            if(row.aerodromo) aerodromos.add(row.aerodromo);
+
+            if (row.tipo === 'binario') groupedData[time].classRows.push(row);
+            if (row.tipo === 'continuo') groupedData[time].regRows.push(row);
+        });
+
+        timestamps = Object.keys(groupedData).sort((a, b) => new Date(a) - new Date(b));
+        
+        // Popular selects
+        const execSelect = document.getElementById('executionSelect');
+        execSelect.innerHTML = '';
+        timestamps.forEach((time, index) => { execSelect.add(new Option(`Lote ${index + 1}: ${time}`, time)); });
+
+        const aeroSelect = document.getElementById('aeroSelect');
+        aeroSelect.innerHTML = '<option value="todos">Todos os Aeródromos</option>';
+        [...aerodromos].sort().forEach(a => aeroSelect.add(new Option(a, a)));
+
+        document.getElementById('uploadSec').style.display = 'none';
+        document.getElementById('mainDashboard').style.display = 'block';
+        
+        currentIndex = timestamps.length - 1;
+        execSelect.selectedIndex = currentIndex;
+        
+        renderEvolutionChart(); // Desenha gráfico global
+        resetSortAndRender();
+    }
+
+    function changeExecution(step) {
+        currentIndex += step;
+        if (currentIndex < 0) currentIndex = 0;
+        if (currentIndex >= timestamps.length) currentIndex = timestamps.length - 1;
+        document.getElementById('executionSelect').selectedIndex = currentIndex;
+        resetSortAndRender();
+    }
+
+    function resetSortAndRender() {
+        // Controle de botões Next/Prev
+        document.getElementById('btnPrev').disabled = currentIndex === 0;
+        document.getElementById('btnNext').disabled = currentIndex === timestamps.length - 1;
+        renderDashboard();
+    }
+
+    function renderDashboard() {
+        const selectedTime = timestamps[currentIndex];
+        const lote = groupedData[selectedTime];
+        if (!lote) return;
+
+        const filtroConjunto = document.getElementById('conjuntoSelect').value;
+        const filtroAero = document.getElementById('aeroSelect').value;
+        
+        let classData = lote.classRows.filter(r => 
+            (filtroConjunto === 'todos' || (r.conjunto || '').toLowerCase().includes(filtroConjunto)) &&
+            (filtroAero === 'todos' || r.aerodromo === filtroAero)
+        );
+        let regData = lote.regRows.filter(r => 
+            (filtroConjunto === 'todos' || (r.conjunto || '').toLowerCase().includes(filtroConjunto)) &&
+            (filtroAero === 'todos' || r.aerodromo === filtroAero)
+        );
+
+        classData = sortDataArray(classData, sortState.class.col, sortState.class.asc);
+        regData = sortDataArray(regData, sortState.reg.col, sortState.reg.asc);
+        
+        updateSortIcons();
+        
+        // Passa lote anterior para comparar parâmetros
+        const prevLote = currentIndex > 0 ? groupedData[timestamps[currentIndex-1]] : null;
+        renderParams(lote.classRows, lote.regRows, prevLote); 
+        
+        renderScoresAndTables(classData, regData);
+        renderBarCharts(classData, regData);
+    }
+
+    function renderEvolutionChart() {
+        if(evoChartInst) evoChartInst.destroy();
+        
+        const labels = timestamps.map((t, i) => `Lote ${i+1}`);
+        const avgAuc = timestamps.map(t => {
+            const rows = groupedData[t].classRows.filter(r=>r.conjunto.includes('val') || r.conjunto.includes('test'));
+            return rows.length ? rows.reduce((s,r)=>s+(r.auc||0),0)/rows.length : null;
+        });
+        const avgR2 = timestamps.map(t => {
+            const rows = groupedData[t].regRows.filter(r=>r.conjunto.includes('val') || r.conjunto.includes('test'));
+            return rows.length ? rows.reduce((s,r)=>s+Math.max(0,r.r2||0),0)/rows.length : null;
+        });
+
+        const ctx = document.getElementById('evolutionChart').getContext('2d');
+        evoChartInst = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Média AUC (Class)', data: avgAuc, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.3, pointRadius: 4 },
+                    { label: 'Média R² (Reg)', data: avgR2, borderColor: '#22c55e', backgroundColor: '#22c55e', tension: 0.3, pointRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: { y: { beginAtZero: true, max: 1 } }
+            }
+        });
+    }
+
+    function renderBarCharts(classData, regData) {
+        if (classChartInst) classChartInst.destroy();
+        if (regChartInst) regChartInst.destroy();
+
+        const ctxClass = document.getElementById('classChart').getContext('2d');
+        classChartInst = new Chart(ctxClass, {
+            type: 'bar',
+            data: {
+                labels: classData.length ? classData.map(d => `${d.aerodromo}-${d.target}`) : ['Sem Dados'],
+                datasets: [{ label: 'AUC', data: classData.map(d => d.auc || 0), backgroundColor: '#3b82f6', borderRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 1 } } }
+        });
+
+        const ctxReg = document.getElementById('regChart').getContext('2d');
+        regChartInst = new Chart(ctxReg, {
+            type: 'bar',
+            data: {
+                labels: regData.length ? regData.map(d => `${d.aerodromo}-${d.target}`) : ['Sem Dados'],
+                datasets: [{ label: 'R²', data: regData.map(d => Math.max(0, d.r2 || 0)), backgroundColor: '#22c55e', borderRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 1 } } }
+        });
+    }
+
+    function renderParams(classRows, regRows, prevLote) {
+        const cGrid = document.getElementById('classParamsGrid');
+        const rGrid = document.getElementById('regParamsGrid');
+        cGrid.innerHTML = ''; rGrid.innerHTML = '';
+
+        const prevClassP = prevLote && prevLote.classRows.length > 0 ? prevLote.classRows[0] : {};
+        const prevRegP = prevLote && prevLote.regRows.length > 0 ? prevLote.regRows[0] : {};
+
+        if (classRows.length > 0) {
+            const curr = classRows[0];
+            classImportantParams.forEach(p => {
+                if (curr[p] !== undefined) {
+                    const changed = prevLote && prevClassP[p] != curr[p] ? 'param-changed' : '';
+                    const icon = changed ? '<span class="changed-icon">● Diff</span>' : '';
+                    cGrid.innerHTML += `<div class="param-card ${changed}"><div class="param-label">${p.replace('param_', '')} ${icon}</div><div class="param-value">${curr[p]}</div></div>`;
+                }
+            });
+        }
+        
+        if (regRows.length > 0) {
+            const curr = regRows[0];
+            regImportantParams.forEach(p => {
+                if (curr[p] !== undefined) {
+                    const changed = prevLote && prevRegP[p] != curr[p] ? 'param-changed' : '';
+                    const icon = changed ? '<span class="changed-icon">● Diff</span>' : '';
+                    rGrid.innerHTML += `<div class="param-card ${changed}"><div class="param-label">${p.replace('param_', '')} ${icon}</div><div class="param-value">${curr[p]}</div></div>`;
+                }
+            });
+        }
+    }
+
+    // Calcula score customizado para o círculo
+    function calcClassScore(data) {
+        if(!data.length) return null;
+        let sum = 0;
+        data.forEach(r => {
+            let nAuc = Math.max(0, (r.auc - 0.5) * 2);
+            let bal = (r.n_pos_real > 0 && r.n_pos_pred > 0) ? Math.min(r.n_pos_real, r.n_pos_pred) / Math.max(r.n_pos_real, r.n_pos_pred) : (r.n_pos_real===0&&r.n_pos_pred===0?1:0);
+            sum += (nAuc * 70) + (bal * 30);
+        });
+        return sum / data.length;
+    }
+
+    function calcRegScore(data) {
+        if(!data.length) return null;
+        let sum = data.reduce((acc, r) => acc + Math.min(100, Math.max(0, r.r2||0) * 150), 0);
+        return sum / data.length;
+    }
+
+    function renderScoresAndTables(classRows, regRows) {
+        const binTbody = document.querySelector('#binaryTable tbody');
+        const contTbody = document.querySelector('#continuousTable tbody');
+        binTbody.innerHTML = ''; contTbody.innerHTML = '';
+
+        // Calcular Scores Atuais
+        let currentClassScore = calcClassScore(classRows);
+        let currentRegScore = calcRegScore(regRows);
+
+        // Calcular Scores Anteriores (para Delta) - Respeitando os mesmos filtros
+        let prevClassScore = null; let prevRegScore = null;
+        if (currentIndex > 0) {
+            const prevLote = groupedData[timestamps[currentIndex-1]];
+            const fConjunto = document.getElementById('conjuntoSelect').value;
+            const fAero = document.getElementById('aeroSelect').value;
+            
+            let pCData = prevLote.classRows.filter(r => (fConjunto==='todos'||r.conjunto.includes(fConjunto)) && (fAero==='todos'||r.aerodromo===fAero));
+            let pRData = prevLote.regRows.filter(r => (fConjunto==='todos'||r.conjunto.includes(fConjunto)) && (fAero==='todos'||r.aerodromo===fAero));
+            prevClassScore = calcClassScore(pCData);
+            prevRegScore = calcRegScore(pRData);
+        }
+
+        updateScoreUI('classScoreCircle', 'classDelta', currentClassScore, prevClassScore);
+        updateScoreUI('regScoreCircle', 'regDelta', currentRegScore, prevRegScore);
+
+        classRows.forEach(row => {
+            let evalPos = getPosEvaluation(row.n_pos_real, row.n_pos_pred);
+            binTbody.innerHTML += `<tr>
+                <td><b>${row.aerodromo}</b></td><td>${row.target}</td><td><span class="badge-conjunto badge-${row.conjunto.includes('val')?'validacao':'teste'}">${row.conjunto}</span></td>
+                <td>${(row.auc||0).toFixed(3)} ${getBadge(row.auc, 0.88, 0.80)}</td><td>${(row.f1||0).toFixed(3)}</td>
+                <td>${evalPos.html}</td><td>${getStatus(row.auc, evalPos.status, false)}</td>
+            </tr>`;
+        });
+
+        regRows.forEach(row => {
+            let r2Badge = getBadge(row.r2, 0.45, 0.30);
+            contTbody.innerHTML += `<tr>
+                <td><b>${row.aerodromo}</b></td><td>${row.target}</td><td><span class="badge-conjunto badge-${row.conjunto.includes('val')?'validacao':'teste'}">${row.conjunto}</span></td>
+                <td>${(row.mae||0).toFixed(3)}</td><td>${(row.rmse||0).toFixed(3)}</td>
+                <td>${(row.r2||0).toFixed(3)} ${r2Badge}</td><td>${getStatus(row.r2, r2Badge.includes('bom')?'bom':'ruim', true)}</td>
+            </tr>`;
+        });
+
+        if (!classRows.length) binTbody.innerHTML = '<tr><td colspan="7">Nenhum dado.</td></tr>';
+        if (!regRows.length) contTbody.innerHTML = '<tr><td colspan="7">Nenhum dado.</td></tr>';
+    }
+
+    function updateScoreUI(circleId, deltaId, score, prevScore) {
+        const el = document.getElementById(circleId);
+        const delEl = document.getElementById(deltaId);
+        
+        el.className = 'score-circle'; 
+        if (score === null || isNaN(score)) { el.childNodes[0].nodeValue = 'N/A'; delEl.style.display='none'; return; }
+
+        el.childNodes[0].nodeValue = `${Math.round(score)}%`;
+        if (score >= 75) el.classList.add('score-good');
+        else if (score >= 50) el.classList.add('score-warn');
+        else el.classList.add('score-bad');
+
+        delEl.style.display = 'block';
+        if (prevScore !== null && !isNaN(prevScore)) {
+            let diff = Math.round(score - prevScore);
+            if(diff > 0) { delEl.innerHTML = `↑ +${diff}%`; delEl.className = 'score-delta delta-up'; }
+            else if(diff < 0) { delEl.innerHTML = `↓ ${diff}%`; delEl.className = 'score-delta delta-down'; }
+            else { delEl.innerHTML = `- 0%`; delEl.className = 'score-delta delta-neutral'; }
+        } else {
+            delEl.style.display = 'none';
+        }
+    }
+
+    function getPosEvaluation(r, p) {
+        if (r == null || p == null) return {html:'-', status:'neutral'};
+        if (r === 0) return {html:`R: 0 | P: ${p}`, status: p===0?'bom':'ruim'};
+        const rt = p/r; let st = 'bom'; let cl = 'var(--good-border)';
+        if(rt<0.5 || rt>2.0) {st='ruim'; cl='var(--bad-border)';} else if(rt<0.8||rt>1.2) {st='alerta'; cl='var(--warn-border)';}
+        return {html: `<div style="font-size:11px; display:flex; justify-content:space-between"><span>R: <b>${r}</b></span><span>P: <b style="color:${cl}">${p}</b></span></div><div class="ratio-bar-container"><div class="ratio-bar" style="width:${Math.min(rt*50,100)}%; background:${cl};"></div></div>`, status: st};
+    }
+    
+    function getBadge(v, g, w) { if(v==null) return ''; if(v>=g) return `<span class="badge bom">Bom</span>`; if(v>=w) return `<span class="badge alerta">Reg</span>`; return `<span class="badge ruim">Ruim</span>`; }
+    function getStatus(v, s, c) { if(v==null) return '-'; let g=c?(v>=0.45):(v>=0.88&&s==='bom'); let w=c?(v>=0.30):(v>=0.80&&s!=='ruim'); if(g) return `<span class="badge bom">Excelente</span>`; if(w) return `<span class="badge alerta">Aceitável</span>`; return `<span class="badge ruim">Revisar</span>`; }
+
+    // Funções auxiliares de Sort
+    function handleSort(type, col) {
+        if (sortState[type].col === col) sortState[type].asc = !sortState[type].asc;
+        else { sortState[type].col = col; sortState[type].asc = false; }
+        renderDashboard();
+    }
+    function updateSortIcons() {
+        document.querySelectorAll('.sort-icon').forEach(i => { i.innerText = '↕'; i.classList.remove('sort-active'); });
+        ['class', 'reg'].forEach(t => {
+            const icon = document.getElementById(`sort-${t}-${sortState[t].col}`);
+            if(icon) { icon.innerText = sortState[t].asc ? '↑' : '↓'; icon.classList.add('sort-active'); }
+        });
+    }
+    function sortDataArray(arr, col, asc) {
+        return [...arr].sort((a,b) => {
+            let va=a[col]??(typeof a[col]==='string'?'':-Infinity), vb=b[col]??(typeof b[col]==='string'?'':-Infinity);
+            if(typeof va==='string') va=va.toLowerCase(); if(typeof vb==='string') vb=vb.toLowerCase();
+            return va<vb ? (asc?-1:1) : (va>vb ? (asc?1:-1) : 0);
+        });
+    }
+</script>
+</body>
+</html>
