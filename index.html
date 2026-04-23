@@ -406,6 +406,81 @@
             border: 1px solid var(--border);
         }
 
+        /* Matriz de Confusão & Empty States */
+        .cm-grid {
+            display: grid;
+            grid-template-columns: auto 1fr 1fr;
+            grid-template-rows: auto 1fr 1fr;
+            gap: 5px;
+            text-align: center;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+            height: 100%;
+        }
+
+        .cm-cell {
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 1px solid var(--border);
+            font-size: 16px;
+        }
+
+        .cm-header {
+            font-size: 11px;
+            color: var(--text-light);
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cm-tp {
+            background-color: var(--good-bg);
+            color: var(--good-text);
+            border-color: var(--good-border);
+        }
+
+        .cm-tn {
+            background-color: #f1f5f9;
+            color: var(--text-light);
+        }
+
+        .cm-fp {
+            background-color: var(--bad-bg);
+            color: var(--bad-text);
+            border-color: var(--bad-border);
+            opacity: 0.9;
+        }
+
+        .cm-fn {
+            background-color: var(--warn-bg);
+            color: var(--warn-text);
+            border-color: var(--warn-border);
+            opacity: 0.9;
+        }
+
+        .cm-label {
+            font-size: 10px;
+            font-weight: normal;
+            margin-bottom: 2px;
+        }
+
+        .empty-state {
+            color: var(--text-light);
+            font-size: 13px;
+            padding: 30px;
+            text-align: center;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px dashed var(--border);
+            margin: auto;
+        }
+
         .badge-treino {
             background-color: var(--treino);
             color: #334155;
@@ -527,6 +602,22 @@
                 </div>
             </div>
 
+            <div class="charts-container">
+                <div class="chart-box">
+                    <div class="params-title">🧩 Matriz de Confusão (Classificação)</div>
+                    <div id="cmContainer" class="chart-wrapper" style="display:flex; height: 200px;">
+                        <div class="empty-state">Aguardando dados...</div>
+                    </div>
+                </div>
+                <div class="chart-box">
+                    <div class="params-title">🌟 Efetividade (Precisão & Recall)</div>
+                    <div class="chart-wrapper" style="display:flex; height: 200px;">
+                        <canvas id="featChart" style="display:none;"></canvas>
+                        <div class="empty-state" id="featEmpty">Aguardando cálculo reverso da matriz...</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="section-title"><span>📊 Classificação (Detalhes)</span></div>
             <div class="table-container">
                 <table id="binaryTable">
@@ -582,7 +673,7 @@
         let timestamps = [];
         let currentIndex = 0;
 
-        let evoChartInst = null, classChartInst = null, regChartInst = null;
+        let evoChartInst = null, classChartInst = null, regChartInst = null, featChartInst = null;
 
         let sortState = { class: { col: 'auc', asc: false }, reg: { col: 'r2', asc: false } };
         const classImportantParams = ['param_max_depth', 'param_learning_rate', 'param_n_estimators', 'spw', 'param_subsample', 'param_colsample_bytree', 'param_min_child_weight', 'param_gamma', 'param_reg_lambda', 'param_reg_alpha'];
@@ -699,6 +790,7 @@
             renderScoresAndTables(classData, regData);
             renderBarCharts(classData, regData);
             renderEvolutionChart(filtroConjunto, filtroAero, filtroTarget);
+            renderAdvancedAnalysis(classData, regData);
         }
 
         function renderEvolutionChart(fConjunto, fAero, fTarget) {
@@ -763,6 +855,84 @@
                 },
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 1 } } }
             });
+        }
+
+        function renderAdvancedAnalysis(classRows, regRows) {
+            const cmContainer = document.getElementById('cmContainer');
+            
+            let tp = 0, fp = 0, fn = 0, tn = 0, hasCM = false;
+            classRows.forEach(r => {
+                let rTP = r.tp, rFP = r.fp, rFN = r.fn, rTN = r.tn;
+
+                // Engenharia reversa da Matriz se os dados brutos não existirem
+                if (rTP === undefined && r.f1 !== undefined && r.accuracy !== undefined && r.n_pos_real !== undefined && r.n_pos_pred !== undefined) {
+                    rTP = Math.round((r.f1 * (r.n_pos_real + r.n_pos_pred)) / 2);
+                    rFN = Math.max(0, r.n_pos_real - rTP);
+                    rFP = Math.max(0, r.n_pos_pred - rTP);
+                    let S = rTP + rFP + rFN;
+                    if (r.accuracy < 1 && r.accuracy > 0) {
+                        rTN = Math.round((r.accuracy * S - rTP) / (1 - r.accuracy));
+                    } else {
+                        rTN = 0; 
+                    }
+                }
+
+                if (rTP !== undefined && !isNaN(rTP)) {
+                    tp += rTP; fp += rFP; fn += rFN; tn += Math.max(0, rTN);
+                    hasCM = true;
+                }
+            });
+
+            if (hasCM) {
+                cmContainer.innerHTML = `
+                    <div class="cm-grid">
+                        <div></div><div class="cm-header">Prev Pos</div><div class="cm-header">Prev Neg</div>
+                        <div class="cm-header" style="writing-mode: vertical-rl; transform: rotate(180deg);">Real Pos</div>
+                        <div class="cm-cell cm-tp"><span class="cm-label">TP (Verdadeiro Pos)</span>${tp}</div>
+                        <div class="cm-cell cm-fn"><span class="cm-label">FN (Falso Negativo)</span>${fn}</div>
+                        <div class="cm-header" style="writing-mode: vertical-rl; transform: rotate(180deg);">Real Neg</div>
+                        <div class="cm-cell cm-fp"><span class="cm-label">FP (Falso Positivo)</span>${fp}</div>
+                        <div class="cm-cell cm-tn"><span class="cm-label">TN (Verdadeiro Neg)</span>${tn}</div>
+                    </div>
+                `;
+            } else {
+                cmContainer.innerHTML = `<div class="empty-state">Requer métricas base f1, accuracy e pos_real/pred para efetuar cálculos reversos da matriz.</div>`;
+            }
+
+            if (featChartInst) featChartInst.destroy();
+            const featCtx = document.getElementById('featChart').getContext('2d');
+            
+            if (hasCM) {
+                document.getElementById('featEmpty').style.display = 'none';
+                document.getElementById('featChart').style.display = 'block';
+                
+                const prec = tp + fp > 0 ? (tp / (tp + fp)) : 0;
+                const rec = tp + fn > 0 ? (tp / (tp + fn)) : 0;
+                const spec = tn + fp > 0 ? (tn / (tn + fp)) : 0;
+
+                featChartInst = new Chart(featCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Precisão (Acerto)', 'Recall (Captura)', 'Especificidade (Rej. Falsos)'],
+                        datasets: [{ 
+                            label: 'Efetividade Geral', 
+                            data: [prec, rec, spec], 
+                            backgroundColor: ['#8b5cf6', '#3b82f6', '#10b981'], 
+                            borderRadius: 4 
+                        }]
+                    },
+                    options: { 
+                        indexAxis: 'y', 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        scales: { x: { min: 0, max: 1 } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            } else {
+                document.getElementById('featChart').style.display = 'none';
+                document.getElementById('featEmpty').style.display = 'block';
+            }
         }
 
         function renderParams(classRows, regRows, prevLote) {
