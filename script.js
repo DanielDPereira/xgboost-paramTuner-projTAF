@@ -3,6 +3,11 @@ let groupedData = {};
 let timestamps = [];
 let currentIndex = 0;
 
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;');
+}
+
 function jumpToExecution(time) {
     const idx = timestamps.indexOf(time);
     if (idx !== -1) {
@@ -113,7 +118,12 @@ function processData(data) {
         if (row.tipo === 'continuo') groupedData[time].regRows.push(row);
     });
 
-    timestamps = Object.keys(groupedData).sort((a, b) => new Date(a) - new Date(b));
+    timestamps = Object.keys(groupedData).sort((a, b) => {
+        const da = new Date(a), db = new Date(b);
+        const va = isNaN(da.getTime()) ? Infinity : da.getTime();
+        const vb = isNaN(db.getTime()) ? Infinity : db.getTime();
+        return va - vb;
+    });
 
     // Popular selects
     const execSelect = document.getElementById('executionSelect');
@@ -543,7 +553,7 @@ function renderScoresAndTables(classRows, regRows) {
 
     classRows.forEach(row => {
         let evalPos = getPosEvaluation(row.n_pos_real, row.n_pos_pred);
-        let lowSample = (row.conjunto !== 'treino' && row.n_pos_real != null && row.n_pos_real < 30) ? `<span title="Baixa Amostra (n < 30)" style="cursor:help; border-bottom:1px dotted var(--warn-text);">⚠️</span>` : '';
+        let lowSample = (row.conjunto !== 'treino' && row.n_pos_real != null && row.n_pos_real < 30) ? `<span title="Baixa Amostra (n < 30)" style="cursor:help; color:var(--status-warn-text); border-bottom:1px dotted var(--status-warn-border);">⚠️</span>` : '';
         let conjBadgeClass = row.conjunto.includes('val') ? 'validacao' : (row.conjunto === 'treino' ? 'treino' : 'teste');
         
         let curLote = groupedData[timestamps[currentIndex]];
@@ -551,8 +561,8 @@ function renderScoresAndTables(classRows, regRows) {
         let overfitHtml = '';
         if (treinRow && Number.isFinite(row.auc) && Number.isFinite(treinRow.auc)) {
             let gap = treinRow.auc - row.auc;
-            if (gap > 0.15) overfitHtml = `<br><span style="font-size:11px; color:var(--bad-border);" title="Overfitting Crítico: Gap de ${gap.toFixed(3)}">🔥 Tr: ${(treinRow.auc).toFixed(3)} (Overfit)</span>`;
-            else overfitHtml = `<br><span style="font-size:11px; color:var(--text-light);">Tr: ${(treinRow.auc).toFixed(3)} (Δ -${gap.toFixed(2)})</span>`;
+            if (gap > 0.15) overfitHtml = `<br><span style="font-size:11px; color:var(--status-bad-border);" title="Overfitting Crítico: Gap de ${gap.toFixed(3)}">🔥 Tr: ${(treinRow.auc).toFixed(3)} (Overfit)</span>`;
+            else overfitHtml = `<br><span style="font-size:11px; color:var(--text-muted);">Tr: ${(treinRow.auc).toFixed(3)} (Δ -${gap.toFixed(2)})</span>`;
         }
 
         let rTP = row.tp, rFP = row.fp, rFN = row.fn;
@@ -565,7 +575,7 @@ function renderScoresAndTables(classRows, regRows) {
         let rec = (rTP + rFN) > 0 ? (rTP / (rTP + rFN)) : 0;
 
         binTbody.innerHTML += `<tr>
-        <td><b>${row.aerodromo}</b></td><td>${row.target} ${lowSample}</td><td><span class="badge-conjunto badge-${conjBadgeClass}">${row.conjunto}</span></td>
+        <td><b>${escapeHtml(row.aerodromo)}</b></td><td>${escapeHtml(row.target)} ${lowSample}</td><td><span class="badge-conjunto badge-${conjBadgeClass}">${escapeHtml(row.conjunto)}</span></td>
         <td>${(row.auc || 0).toFixed(3)} ${getBadge(row.auc, 0.88, 0.80)} ${overfitHtml}</td>
         <td>${prec.toFixed(3)}</td><td>${rec.toFixed(3)}</td>
         <td>${(row.f1 || 0).toFixed(3)}</td>
@@ -582,17 +592,17 @@ function renderScoresAndTables(classRows, regRows) {
         let overfitHtml = '';
         if (treinRow && Number.isFinite(row.r2) && Number.isFinite(treinRow.r2)) {
             let gap = treinRow.r2 - row.r2;
-            if (gap > 0.20 && treinRow.r2 > 0.5) overfitHtml = `<br><span style="font-size:11px; color:var(--bad-border);">🔥 Tr: ${(treinRow.r2).toFixed(3)} (Overfit)</span>`;
+            if (gap > 0.20 && treinRow.r2 > 0.5) overfitHtml = `<br><span style="font-size:11px; color:var(--status-bad-border);">🔥 Tr: ${(treinRow.r2).toFixed(3)} (Overfit)</span>`;
         }
 
         let outlierHtml = '';
         if (row.mae > 0 && row.rmse > 0) {
             let ratio = row.rmse / row.mae;
-            if (ratio > 1.5) outlierHtml = `<br><span title="RMSE é ${ratio.toFixed(1)}x o MAE (Muitos outliers em previsões raras)" style="font-size:11px; color:var(--warn-border);">⚠️ Outliers (${ratio.toFixed(1)}x)</span>`;
+            if (ratio > 1.5) outlierHtml = `<br><span title="RMSE é ${ratio.toFixed(1)}x o MAE (Muitos outliers em previsões raras)" style="font-size:11px; color:var(--status-warn-border);">⚠️ Outliers (${ratio.toFixed(1)}x)</span>`;
         }
 
         contTbody.innerHTML += `<tr>
-        <td><b>${row.aerodromo}</b></td><td>${row.target}</td><td><span class="badge-conjunto badge-${conjBadgeClass}">${row.conjunto}</span></td>
+        <td><b>${escapeHtml(row.aerodromo)}</b></td><td>${escapeHtml(row.target)}</td><td><span class="badge-conjunto badge-${conjBadgeClass}">${escapeHtml(row.conjunto)}</span></td>
         <td>${(row.mae || 0).toFixed(3)}</td><td>${(row.rmse || 0).toFixed(3)} ${outlierHtml}</td>
         <td>${(row.r2 || 0).toFixed(3)} ${r2Badge} ${overfitHtml}</td><td>${getStatus(row.r2, r2Badge.includes('bom') ? 'bom' : 'ruim', true)}</td>
     </tr>`;
@@ -653,18 +663,83 @@ function renderLeaderboard() {
 
     const { bestClass, bestReg } = cachedResult;
     const lb = document.getElementById('leaderboardContainer');
-    let html = '<table style="width:100%; border-collapse: collapse; text-align:left;">';
-    if(bestClass) {
-        html += `<tr style="border-bottom:1px dotted var(--border-color); cursor:pointer;" onmouseover="this.style.backgroundColor='var(--badge-treino)'" onmouseout="this.style.backgroundColor='transparent'" onclick="jumpToExecution('${bestClass.lote}')"><td style="padding:10px;">🏆 <b>Maior AUC</b></td><td>Lote: <span style="font-family:monospace; color:var(--text-muted);">${bestClass.lote}</span></td><td><span class="badge bom">${bestClass.row.auc.toFixed(4)}</span></td><td>${bestClass.row.aerodromo} - ${bestClass.row.target} &nbsp;<span class="badge-conjunto badge-${bestClass.row.conjunto.includes('val')?'validacao':(bestClass.row.conjunto==='treino'?'treino':'teste')}">${bestClass.row.conjunto}</span></td></tr>`;
+
+    function getConjuntoBadgeClass(conjunto) {
+        return conjunto.includes('val') ? 'validacao' : (conjunto === 'treino' ? 'treino' : 'teste');
     }
-    if(bestReg) {
-        html += `<tr style="cursor:pointer;" onmouseover="this.style.backgroundColor='var(--badge-treino)'" onmouseout="this.style.backgroundColor='transparent'" onclick="jumpToExecution('${bestReg.lote}')"><td style="padding:10px;">🎯 <b>Maior R²</b></td><td>Lote: <span style="font-family:monospace; color:var(--text-muted);">${bestReg.lote}</span></td><td><span class="badge bom">${bestReg.row.r2.toFixed(4)}</span></td><td>${bestReg.row.aerodromo} - ${bestReg.row.target} &nbsp;<span class="badge-conjunto badge-${bestReg.row.conjunto.includes('val')?'validacao':(bestReg.row.conjunto==='treino'?'treino':'teste')}">${bestReg.row.conjunto}</span></td></tr>`;
+
+    function createLeaderboardRow(icon, label, lote, metricValue, aerodromo, target, conjunto, withBorder) {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        if (withBorder) tr.style.borderBottom = '1px dotted var(--border-color)';
+        tr.addEventListener('mouseover', function () { tr.style.backgroundColor = 'var(--badge-treino)'; });
+        tr.addEventListener('mouseout', function () { tr.style.backgroundColor = 'transparent'; });
+        tr.addEventListener('click', function () { jumpToExecution(lote); });
+
+        const td1 = document.createElement('td');
+        td1.style.padding = '10px';
+        // icon is a hardcoded emoji literal (e.g. '🏆'), safe to use with innerHTML
+        td1.innerHTML = `${icon} `;
+        const strong = document.createElement('b');
+        strong.textContent = label;
+        td1.appendChild(strong);
+
+        const td2 = document.createElement('td');
+        td2.appendChild(document.createTextNode('Lote: '));
+        const loteSpan = document.createElement('span');
+        loteSpan.style.fontFamily = 'monospace';
+        loteSpan.style.color = 'var(--text-muted)';
+        loteSpan.textContent = lote;
+        td2.appendChild(loteSpan);
+
+        const td3 = document.createElement('td');
+        const metricSpan = document.createElement('span');
+        metricSpan.className = 'badge bom';
+        metricSpan.textContent = metricValue;
+        td3.appendChild(metricSpan);
+
+        const td4 = document.createElement('td');
+        td4.appendChild(document.createTextNode(aerodromo + ' - ' + target + ' '));
+        const conjuntoSpan = document.createElement('span');
+        conjuntoSpan.className = `badge-conjunto badge-${getConjuntoBadgeClass(conjunto)}`;
+        conjuntoSpan.textContent = conjunto;
+        td4.appendChild(conjuntoSpan);
+
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        tr.appendChild(td3);
+        tr.appendChild(td4);
+        return tr;
     }
-    if(!bestClass && !bestReg) {
-         html += '<tr><td style="padding:15px; color:var(--text-light);">Sem dados suficientes para o filtro atual.</td></tr>';
+
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.textAlign = 'left';
+
+    if (bestClass) {
+        table.appendChild(createLeaderboardRow(
+            '🏆', 'Maior AUC', bestClass.lote, bestClass.row.auc.toFixed(4),
+            bestClass.row.aerodromo, bestClass.row.target, bestClass.row.conjunto, true
+        ));
     }
-    html += '</table>';
-    lb.innerHTML = html;
+    if (bestReg) {
+        table.appendChild(createLeaderboardRow(
+            '🎯', 'Maior R²', bestReg.lote, bestReg.row.r2.toFixed(4),
+            bestReg.row.aerodromo, bestReg.row.target, bestReg.row.conjunto, false
+        ));
+    }
+    if (!bestClass && !bestReg) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.style.padding = '15px';
+        td.style.color = 'var(--text-muted)';
+        td.textContent = 'Sem dados suficientes para o filtro atual.';
+        tr.appendChild(td);
+        table.appendChild(tr);
+    }
+
+    lb.replaceChildren(table);
 }
 
 function updateScoreUI(circleId, deltaId, score, prevScore) {
@@ -693,8 +768,8 @@ function updateScoreUI(circleId, deltaId, score, prevScore) {
 function getPosEvaluation(r, p) {
     if (r == null || p == null) return { html: '-', status: 'neutral' };
     if (r === 0) return { html: `R: 0 | P: ${p}`, status: p === 0 ? 'bom' : 'ruim' };
-    const rt = p / r; let st = 'bom'; let cl = 'var(--good-border)';
-    if (rt < 0.5 || rt > 2.0) { st = 'ruim'; cl = 'var(--bad-border)'; } else if (rt < 0.8 || rt > 1.2) { st = 'alerta'; cl = 'var(--warn-border)'; }
+    const rt = p / r; let st = 'bom'; let cl = 'var(--status-good-border)';
+    if (rt < 0.5 || rt > 2.0) { st = 'ruim'; cl = 'var(--status-bad-border)'; } else if (rt < 0.8 || rt > 1.2) { st = 'alerta'; cl = 'var(--status-warn-border)'; }
     return { html: `<div style="font-size:11px; display:flex; justify-content:space-between"><span>R: <b>${r}</b></span><span>P: <b style="color:${cl}">${p}</b></span></div><div class="ratio-bar-container"><div class="ratio-bar" style="width:${Math.min(rt * 50, 100)}%; background:${cl};"></div></div>`, status: st };
 }
 
