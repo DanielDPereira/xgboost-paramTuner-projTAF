@@ -1056,7 +1056,7 @@
                 let curLote = groupedData[timestamps[currentIndex]];
                 let treinRow = row.conjunto !== 'treino' ? curLote.regRows.find(r => r.conjunto === 'treino' && r.aerodromo === row.aerodromo && r.target === row.target) : null;
                 let overfitHtml = '';
-                if (treinRow && row.r2 && treinRow.r2) {
+                if (treinRow && Number.isFinite(row.r2) && Number.isFinite(treinRow.r2)) {
                     let gap = treinRow.r2 - row.r2;
                     if (gap > 0.20 && treinRow.r2 > 0.5) overfitHtml = `<br><span style="font-size:11px; color:var(--bad-border);">🔥 Tr: ${(treinRow.r2).toFixed(3)} (Overfit)</span>`;
                 }
