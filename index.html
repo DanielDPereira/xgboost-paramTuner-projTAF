@@ -1074,32 +1074,51 @@
             const fTarget = document.getElementById('targetSelect').value;
             const fConjunto = document.getElementById('conjuntoSelect').value;
 
-            let bestClass = null;
-            let bestReg = null;
+            if (!renderLeaderboard._cache ||
+                renderLeaderboard._cacheGroupedDataRef !== groupedData ||
+                renderLeaderboard._cacheTimestampsRef !== timestamps ||
+                renderLeaderboard._cacheTimestampsLength !== timestamps.length) {
+                renderLeaderboard._cache = new Map();
+                renderLeaderboard._cacheGroupedDataRef = groupedData;
+                renderLeaderboard._cacheTimestampsRef = timestamps;
+                renderLeaderboard._cacheTimestampsLength = timestamps.length;
+            }
 
-            timestamps.forEach(time => {
-                groupedData[time].classRows.forEach(r => {
-                    if ((fAero === 'todos' || r.aerodromo === fAero) &&
-                        (fTarget === 'todos' || r.target === fTarget) &&
-                        (fConjunto === 'todos' ? r.conjunto !== 'treino' : r.conjunto.includes(fConjunto))) {
-                        
-                        if (!bestClass || (r.auc && r.auc > bestClass.row.auc)) {
-                            bestClass = { lote: time, row: r };
-                        }
-                    }
-                });
-                groupedData[time].regRows.forEach(r => {
-                    if ((fAero === 'todos' || r.aerodromo === fAero) &&
-                        (fTarget === 'todos' || r.target === fTarget) &&
-                        (fConjunto === 'todos' ? r.conjunto !== 'treino' : r.conjunto.includes(fConjunto))) {
-                        
-                        if (!bestReg || (r.r2 && r.r2 > bestReg.row.r2)) {
-                            bestReg = { lote: time, row: r };
-                        }
-                    }
-                });
-            });
+            const cacheKey = `${fAero}::${fTarget}::${fConjunto}`;
+            let cachedResult = renderLeaderboard._cache.get(cacheKey);
 
+            if (!cachedResult) {
+                let bestClass = null;
+                let bestReg = null;
+
+                timestamps.forEach(time => {
+                    groupedData[time].classRows.forEach(r => {
+                        if ((fAero === 'todos' || r.aerodromo === fAero) &&
+                            (fTarget === 'todos' || r.target === fTarget) &&
+                            (fConjunto === 'todos' ? r.conjunto !== 'treino' : r.conjunto.includes(fConjunto))) {
+                            
+                            if (!bestClass || (r.auc && r.auc > bestClass.row.auc)) {
+                                bestClass = { lote: time, row: r };
+                            }
+                        }
+                    });
+                    groupedData[time].regRows.forEach(r => {
+                        if ((fAero === 'todos' || r.aerodromo === fAero) &&
+                            (fTarget === 'todos' || r.target === fTarget) &&
+                            (fConjunto === 'todos' ? r.conjunto !== 'treino' : r.conjunto.includes(fConjunto))) {
+                            
+                            if (!bestReg || (r.r2 && r.r2 > bestReg.row.r2)) {
+                                bestReg = { lote: time, row: r };
+                            }
+                        }
+                    });
+                });
+
+                cachedResult = { bestClass, bestReg };
+                renderLeaderboard._cache.set(cacheKey, cachedResult);
+            }
+
+            const { bestClass, bestReg } = cachedResult;
             const lb = document.getElementById('leaderboardContainer');
             let html = '<table style="width:100%; border-collapse: collapse; text-align:left;">';
             if(bestClass) {
