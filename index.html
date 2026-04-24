@@ -886,8 +886,16 @@
                     }
                 }
 
-                if (rTP !== undefined && !isNaN(rTP)) {
-                    tp += rTP; fp += rFP; fn += rFN; tn += Math.max(0, rTN);
+                const nTP = Number(rTP);
+                const nFP = Number(rFP);
+                const nFN = Number(rFN);
+                const nTN = Number(rTN);
+
+                if (Number.isFinite(nTP) && Number.isFinite(nFP) && Number.isFinite(nFN)) {
+                    tp += nTP;
+                    fp += nFP;
+                    fn += nFN;
+                    tn += Math.max(0, Number.isFinite(nTN) ? nTN : 0);
                     hasCM = true;
                 }
             });
