@@ -3,6 +3,16 @@ let groupedData = {};
 let timestamps = [];
 let currentIndex = 0;
 
+function jumpToExecution(time) {
+    const idx = timestamps.indexOf(time);
+    if (idx !== -1) {
+        currentIndex = idx;
+        document.getElementById('executionSelect').selectedIndex = currentIndex;
+        resetSortAndRender();
+        document.getElementById('mainDashboard').scrollIntoView({behavior: 'smooth'});
+    }
+}
+
 let evoChartInst = null, classChartInst = null, regChartInst = null, featChartInst = null;
 
 let sortState = { class: { col: 'auc', asc: false }, reg: { col: 'r2', asc: false } };
@@ -60,6 +70,20 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll('.sortable').forEach(th => {
         th.addEventListener('click', (e) => handleSort(e.currentTarget.dataset.type, e.currentTarget.dataset.col));
     });
+
+    // Auto-Fetch CSV na inicialização
+    fetch('historico_modelos_xgboost.csv')
+        .then(response => {
+            if (!response.ok) throw new Error("Local CSV fetch failed.");
+            return response.text();
+        })
+        .then(csvText => {
+            Papa.parse(csvText, {
+                header: true, dynamicTyping: true, skipEmptyLines: true,
+                complete: function (results) { processData(results.data); }
+            });
+        })
+        .catch(err => console.log("Aguardando upload manual do CSV local.", err));
 });
 
 function handleFileUpload(e) {
@@ -403,9 +427,20 @@ function renderScoresAndTables(classRows, regRows) {
             else overfitHtml = `<br><span style="font-size:11px; color:var(--text-light);">Tr: ${(treinRow.auc).toFixed(3)} (Δ -${gap.toFixed(2)})</span>`;
         }
 
+        let rTP = row.tp, rFP = row.fp, rFN = row.fn;
+        if (rTP === undefined && row.f1 !== undefined && row.n_pos_real !== undefined && row.n_pos_pred !== undefined) {
+            rTP = Math.round((row.f1 * (row.n_pos_real + row.n_pos_pred)) / 2);
+            rFN = Math.max(0, row.n_pos_real - rTP);
+            rFP = Math.max(0, row.n_pos_pred - rTP);
+        }
+        let prec = (rTP + rFP) > 0 ? (rTP / (rTP + rFP)) : 0;
+        let rec = (rTP + rFN) > 0 ? (rTP / (rTP + rFN)) : 0;
+
         binTbody.innerHTML += `<tr>
         <td><b>${row.aerodromo}</b></td><td>${row.target} ${lowSample}</td><td><span class="badge-conjunto badge-${conjBadgeClass}">${row.conjunto}</span></td>
-        <td>${(row.auc || 0).toFixed(3)} ${getBadge(row.auc, 0.88, 0.80)} ${overfitHtml}</td><td>${(row.f1 || 0).toFixed(3)}</td>
+        <td>${(row.auc || 0).toFixed(3)} ${getBadge(row.auc, 0.88, 0.80)} ${overfitHtml}</td>
+        <td>${prec.toFixed(3)}</td><td>${rec.toFixed(3)}</td>
+        <td>${(row.f1 || 0).toFixed(3)}</td>
         <td>${evalPos.html}</td><td>${getStatus(row.auc, evalPos.status, false)}</td>
     </tr>`;
     });
@@ -492,10 +527,10 @@ function renderLeaderboard() {
     const lb = document.getElementById('leaderboardContainer');
     let html = '<table style="width:100%; border-collapse: collapse; text-align:left;">';
     if(bestClass) {
-        html += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px;">🏆 <b>Maior AUC</b></td><td>Lote: <span style="font-family:monospace; color:var(--text-light);">${bestClass.lote}</span></td><td><span class="badge bom">${bestClass.row.auc.toFixed(4)}</span></td><td>${bestClass.row.aerodromo} - ${bestClass.row.target} &nbsp;<span class="badge-conjunto badge-${bestClass.row.conjunto.includes('val')?'validacao':(bestClass.row.conjunto==='treino'?'treino':'teste')}">${bestClass.row.conjunto}</span></td></tr>`;
+        html += `<tr style="border-bottom:1px dotted var(--border-color); cursor:pointer;" onmouseover="this.style.backgroundColor='var(--badge-treino)'" onmouseout="this.style.backgroundColor='transparent'" onclick="jumpToExecution('${bestClass.lote}')"><td style="padding:10px;">🏆 <b>Maior AUC</b></td><td>Lote: <span style="font-family:monospace; color:var(--text-muted);">${bestClass.lote}</span></td><td><span class="badge bom">${bestClass.row.auc.toFixed(4)}</span></td><td>${bestClass.row.aerodromo} - ${bestClass.row.target} &nbsp;<span class="badge-conjunto badge-${bestClass.row.conjunto.includes('val')?'validacao':(bestClass.row.conjunto==='treino'?'treino':'teste')}">${bestClass.row.conjunto}</span></td></tr>`;
     }
     if(bestReg) {
-        html += `<tr><td style="padding:10px;">🎯 <b>Maior R²</b></td><td>Lote: <span style="font-family:monospace; color:var(--text-light);">${bestReg.lote}</span></td><td><span class="badge bom">${bestReg.row.r2.toFixed(4)}</span></td><td>${bestReg.row.aerodromo} - ${bestReg.row.target} &nbsp;<span class="badge-conjunto badge-${bestReg.row.conjunto.includes('val')?'validacao':(bestReg.row.conjunto==='treino'?'treino':'teste')}">${bestReg.row.conjunto}</span></td></tr>`;
+        html += `<tr style="cursor:pointer;" onmouseover="this.style.backgroundColor='var(--badge-treino)'" onmouseout="this.style.backgroundColor='transparent'" onclick="jumpToExecution('${bestReg.lote}')"><td style="padding:10px;">🎯 <b>Maior R²</b></td><td>Lote: <span style="font-family:monospace; color:var(--text-muted);">${bestReg.lote}</span></td><td><span class="badge bom">${bestReg.row.r2.toFixed(4)}</span></td><td>${bestReg.row.aerodromo} - ${bestReg.row.target} &nbsp;<span class="badge-conjunto badge-${bestReg.row.conjunto.includes('val')?'validacao':(bestReg.row.conjunto==='treino'?'treino':'teste')}">${bestReg.row.conjunto}</span></td></tr>`;
     }
     if(!bestClass && !bestReg) {
          html += '<tr><td style="padding:15px; color:var(--text-light);">Sem dados suficientes para o filtro atual.</td></tr>';

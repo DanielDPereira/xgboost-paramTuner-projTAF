@@ -152,7 +152,10 @@ body {
 .upload-section input { display: none; }
 
 /* Controls */
-.controls-card { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-end; }
+.controls-card { 
+    display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-end; 
+    position: sticky; top: 76px; z-index: 90;
+}
 .nav-group { display: flex; gap: 0.8rem; flex: 1; min-width: 300px; align-items: center; }
 .filter-group { display: flex; gap: 1rem; flex-wrap: wrap; }
 
