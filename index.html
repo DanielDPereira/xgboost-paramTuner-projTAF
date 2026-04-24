@@ -1009,9 +1009,10 @@
                 const fConjunto = document.getElementById('conjuntoSelect').value;
                 const fAero = document.getElementById('aeroSelect').value;
                 const fTarget = document.getElementById('targetSelect').value;
+                const fConjuntoNorm = (fConjunto || '').toLowerCase();
 
-                let pCData = prevLote.classRows.filter(r => (fConjunto === 'todos' || r.conjunto.includes(fConjunto)) && (fAero === 'todos' || r.aerodromo === fAero) && (fTarget === 'todos' || r.target === fTarget));
-                let pRData = prevLote.regRows.filter(r => (fConjunto === 'todos' || r.conjunto.includes(fConjunto)) && (fAero === 'todos' || r.aerodromo === fAero) && (fTarget === 'todos' || r.target === fTarget));
+                let pCData = prevLote.classRows.filter(r => (fConjunto === 'todos' || ((r.conjunto || '').toLowerCase().includes(fConjuntoNorm))) && (fAero === 'todos' || r.aerodromo === fAero) && (fTarget === 'todos' || r.target === fTarget));
+                let pRData = prevLote.regRows.filter(r => (fConjunto === 'todos' || ((r.conjunto || '').toLowerCase().includes(fConjuntoNorm))) && (fAero === 'todos' || r.aerodromo === fAero) && (fTarget === 'todos' || r.target === fTarget));
                 prevClassScore = calcClassScore(pCData);
                 prevRegScore = calcRegScore(pRData);
             }
