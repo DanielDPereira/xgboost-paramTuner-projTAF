@@ -10,9 +10,44 @@ const classImportantParams = ['param_max_depth', 'param_learning_rate', 'param_n
 const regImportantParams = ['param_max_depth', 'param_learning_rate', 'param_n_estimators', 'param_reg_lambda', 'param_reg_alpha', 'param_subsample', 'param_colsample_bytree', 'param_min_child_weight', 'param_gamma'];
 
 document.addEventListener("DOMContentLoaded", () => {
-    Chart.defaults.color = '#94a3b8';
-    Chart.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.05)';
-    Chart.defaults.font.family = "'Outfit', sans-serif";
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    
+    const htmlEl = document.documentElement;
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeText = themeToggleBtn.querySelector('.theme-text');
+    
+    function applyThemeToCharts(theme) {
+        if (theme === 'dark') {
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.scale.grid.color = '#1e325c';
+        } else {
+            Chart.defaults.color = '#64748b';
+            Chart.defaults.scale.grid.color = '#e2e8f0';
+        }
+        if(rawData.length > 0) renderDashboard();
+    }
+
+    function setTheme(theme) {
+        htmlEl.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        if (theme === 'dark') {
+            themeIcon.innerText = '☀️';
+            themeText.innerText = 'Modo Claro';
+        } else {
+            themeIcon.innerText = '🌙';
+            themeText.innerText = 'Modo Escuro';
+        }
+        applyThemeToCharts(theme);
+    }
+
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+
+    themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = htmlEl.getAttribute('data-theme');
+        setTheme(currentTheme === 'light' ? 'dark' : 'light');
+    });
 
     document.getElementById('csvFileInput').addEventListener('change', handleFileUpload);
     document.getElementById('executionSelect').addEventListener('change', (e) => { currentIndex = e.target.selectedIndex; resetSortAndRender(); });
