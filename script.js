@@ -10,6 +10,10 @@ const classImportantParams = ['param_max_depth', 'param_learning_rate', 'param_n
 const regImportantParams = ['param_max_depth', 'param_learning_rate', 'param_n_estimators', 'param_reg_lambda', 'param_reg_alpha', 'param_subsample', 'param_colsample_bytree', 'param_min_child_weight', 'param_gamma'];
 
 document.addEventListener("DOMContentLoaded", () => {
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.scale.grid.color = 'rgba(255, 255, 255, 0.05)';
+    Chart.defaults.font.family = "'Outfit', sans-serif";
+
     document.getElementById('csvFileInput').addEventListener('change', handleFileUpload);
     document.getElementById('executionSelect').addEventListener('change', (e) => { currentIndex = e.target.selectedIndex; resetSortAndRender(); });
     document.getElementById('conjuntoSelect').addEventListener('change', renderDashboard);

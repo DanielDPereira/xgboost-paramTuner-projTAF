@@ -5,46 +5,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XGBoost Dashboard - Analytics Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-
     <div class="container">
-        <h1>🚀 Analytics de Evolução (XGBoost)</h1>
+        <h1>XGBoost Evolution Analytics</h1>
 
-        <div class="upload-section" id="uploadSec">
-            <label for="csvFileInput"
-                style="display: block; font-size: 18px; font-weight: bold; margin-bottom: 10px; cursor: pointer;">📂
-                Importar Histórico de Lotes (.csv)</label>
-            <input type="file" id="csvFileInput" accept=".csv" style="font-size: 16px; padding: 10px;">
+        <div class="glass-card upload-section" id="uploadSec">
+            <label for="csvFileInput">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Importar Histórico de Lotes (.csv)
+            </label>
+            <input type="file" id="csvFileInput" accept=".csv">
         </div>
 
         <div id="mainDashboard" style="display: none;">
-
-            <div class="evolution-card">
-                <div class="params-title">📈 Histórico de Evolução Global (Médias por Lote)</div>
-                <div class="evolution-wrapper"><canvas id="evolutionChart"></canvas></div>
+            <div class="dashboard-grid">
+                <div class="glass-card">
+                    <div class="params-title">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                        Histórico global (Médias)
+                    </div>
+                    <div class="evolution-wrapper"><canvas id="evolutionChart"></canvas></div>
+                </div>
             </div>
 
-            <div class="controls-card">
+            <div class="glass-card controls-card">
                 <div class="nav-group">
-                    <button class="nav-btn" id="btnPrev">⬅️ Anterior</button>
+                    <button class="nav-btn" id="btnPrev">Anterior</button>
                     <select id="executionSelect" style="flex: 2; font-weight: bold;"></select>
-                    <button class="nav-btn" id="btnNext">Próximo ➡️</button>
+                    <button class="nav-btn" id="btnNext">Próximo</button>
                 </div>
                 <div class="filter-group">
                     <div>
-                        <label style="font-size: 12px; color: var(--text-light); display: block;">Aeródromo</label>
-                        <select id="aeroSelect">
-                            <option value="todos">Todos</option>
-                        </select>
+                        <label>Aeródromo</label>
+                        <select id="aeroSelect"><option value="todos">Todos</option></select>
                     </div>
                     <div>
-                        <label style="font-size: 12px; color: var(--text-light); display: block;">Conjunto</label>
+                        <label>Conjunto</label>
                         <select id="conjuntoSelect">
                             <option value="todos">Todos</option>
                             <option value="treino">Treino</option>
@@ -53,71 +57,69 @@
                         </select>
                     </div>
                     <div>
-                        <label style="font-size: 12px; color: var(--text-light); display: block;">Target</label>
-                        <select id="targetSelect">
-                            <option value="todos">Todos</option>
-                        </select>
+                        <label>Target</label>
+                        <select id="targetSelect"><option value="todos">Todos</option></select>
                     </div>
                 </div>
             </div>
 
             <div class="score-board">
-                <div class="score-card">
-                    <div class="score-title">🏆 Score Médio de Classificação</div>
-                    <div id="classScoreCircle" class="score-circle">-- <div id="classDelta" class="score-delta"></div>
-                    </div>
+                <div class="glass-card score-card">
+                    <div class="score-title">🏆 Score de Classificação</div>
+                    <div id="classScoreCircle" class="score-circle">-- <div id="classDelta" class="score-delta"></div></div>
                 </div>
-                <div class="score-card">
-                    <div class="score-title">🎯 Score Médio de Regressão</div>
-                    <div id="regScoreCircle" class="score-circle">-- <div id="regDelta" class="score-delta"></div>
-                    </div>
+                <div class="glass-card score-card">
+                    <div class="score-title">🎯 Score de Regressão</div>
+                    <div id="regScoreCircle" class="score-circle">-- <div id="regDelta" class="score-delta"></div></div>
                 </div>
             </div>
 
-            <div class="charts-container">
-                <div class="chart-box">
-                    <div class="params-title">📊 Classificação (AUC) - Lote Atual</div>
+            <div class="row-2">
+                <div class="glass-card">
+                    <div class="params-title">📊 Classificação (AUC) - Atual</div>
                     <div class="chart-wrapper"><canvas id="classChart"></canvas></div>
                 </div>
-                <div class="chart-box">
-                    <div class="params-title">📉 Regressão (R²) - Lote Atual</div>
+                <div class="glass-card">
+                    <div class="params-title">📉 Regressão (R²) - Atual</div>
                     <div class="chart-wrapper"><canvas id="regChart"></canvas></div>
                 </div>
             </div>
 
-            <div class="params-container">
-                <div class="params-box">
-                    <div class="params-title">⚙️ Inputs de Classificação <span
-                            style="font-size: 12px; font-weight: normal; margin-left: auto; color: var(--text-light);">Amarelo
-                            = Alterado no último lote</span></div>
+            <div class="row-2">
+                <div class="glass-card">
+                    <div class="params-title">
+                        ⚙️ Params Classificação 
+                        <span class="helper-text">Amarelo = Diff</span>
+                    </div>
                     <div class="grid" id="classParamsGrid"></div>
                 </div>
-                <div class="params-box">
-                    <div class="params-title">⚙️ Inputs de Regressão</div>
+                <div class="glass-card">
+                    <div class="params-title">⚙️ Params Regressão</div>
                     <div class="grid" id="regParamsGrid"></div>
                 </div>
             </div>
 
-            <div class="charts-container">
-                <div class="chart-box">
-                    <div class="params-title">🧩 Matriz de Confusão (Classificação)</div>
-                    <div id="cmContainer" class="chart-wrapper" style="display:flex; height: 200px;">
+            <div class="row-2">
+                <div class="glass-card">
+                    <div class="params-title">🧩 Matriz (Classificação)</div>
+                    <div id="cmContainer" class="chart-wrapper" style="display:flex;">
                         <div class="empty-state">Aguardando dados...</div>
                     </div>
                 </div>
-                <div class="chart-box">
-                    <div class="params-title">🌟 Efetividade (Precisão & Recall)</div>
-                    <div class="chart-wrapper" style="display:flex; height: 200px;">
+                <div class="glass-card">
+                    <div class="params-title">🌟 Precisão & Recall</div>
+                    <div class="chart-wrapper" style="display:flex;">
                         <canvas id="featChart" style="display:none;"></canvas>
-                        <div class="empty-state" id="featEmpty">Aguardando cálculo reverso da matriz...</div>
+                        <div class="empty-state" id="featEmpty">Aguardando dados...</div>
                     </div>
                 </div>
             </div>
-            <div class="charts-container" style="margin-top: 10px;">
-                <div class="chart-box" style="flex: 1;">
-                    <div class="params-title">🥇 Leaderboard (Melhor histórico para o filtro selecionado)</div>
-                    <div id="leaderboardContainer" style="font-size:13px;">
-                         <div class="empty-state" style="padding:15px;">Aguardando dados...</div>
+
+            <div class="dashboard-grid" style="margin-top: 10px;">
+                <div class="glass-card" style="padding-bottom: 5px;">
+                    <div class="params-title">🥇 Leaderboard</div>
+                    <div id="leaderboardContainer" style="font-size:14px; margin-top:20px;">
+                         <div class="empty-state">Aguardando dados...</div>
                     </div>
                 </div>
             </div>
@@ -127,17 +129,12 @@
                 <table id="binaryTable">
                     <thead>
                         <tr>
-                            <th class="sortable" data-type="class" data-col="aerodromo">Aeródromo <span
-                                    class="sort-icon" id="sort-class-aerodromo">↕</span></th>
-                            <th class="sortable" data-type="class" data-col="target">Target <span class="sort-icon"
-                                    id="sort-class-target">↕</span></th>
-                            <th class="sortable" data-type="class" data-col="conjunto">Conjunto <span class="sort-icon"
-                                    id="sort-class-conjunto">↕</span></th>
-                            <th class="sortable" data-type="class" data-col="auc">AUC <span class="sort-icon"
-                                    id="sort-class-auc">↕</span></th>
-                            <th class="sortable" data-type="class" data-col="f1">F1 <span class="sort-icon"
-                                    id="sort-class-f1">↕</span></th>
-                            <th>Real vs Predito</th>
+                            <th class="sortable" data-type="class" data-col="aerodromo">Aero <span class="sort-icon" id="sort-class-aerodromo">↕</span></th>
+                            <th class="sortable" data-type="class" data-col="target">Target <span class="sort-icon" id="sort-class-target">↕</span></th>
+                            <th class="sortable" data-type="class" data-col="conjunto">Conjunto <span class="sort-icon" id="sort-class-conjunto">↕</span></th>
+                            <th class="sortable" data-type="class" data-col="auc">AUC <span class="sort-icon" id="sort-class-auc">↕</span></th>
+                            <th class="sortable" data-type="class" data-col="f1">F1 <span class="sort-icon" id="sort-class-f1">↕</span></th>
+                            <th>Real x Pred</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -150,18 +147,12 @@
                 <table id="continuousTable">
                     <thead>
                         <tr>
-                            <th class="sortable" data-type="reg" data-col="aerodromo">Aeródromo <span class="sort-icon"
-                                    id="sort-reg-aerodromo">↕</span></th>
-                            <th class="sortable" data-type="reg" data-col="target">Target <span class="sort-icon"
-                                    id="sort-reg-target">↕</span></th>
-                            <th class="sortable" data-type="reg" data-col="conjunto">Conjunto <span class="sort-icon"
-                                    id="sort-reg-conjunto">↕</span></th>
-                            <th class="sortable" data-type="reg" data-col="mae">MAE <span class="sort-icon"
-                                    id="sort-reg-mae">↕</span></th>
-                            <th class="sortable" data-type="reg" data-col="rmse">RMSE <span class="sort-icon"
-                                    id="sort-reg-rmse">↕</span></th>
-                            <th class="sortable" data-type="reg" data-col="r2">R² <span class="sort-icon"
-                                    id="sort-reg-r2">↕</span></th>
+                            <th class="sortable" data-type="reg" data-col="aerodromo">Aero <span class="sort-icon" id="sort-reg-aerodromo">↕</span></th>
+                            <th class="sortable" data-type="reg" data-col="target">Target <span class="sort-icon" id="sort-reg-target">↕</span></th>
+                            <th class="sortable" data-type="reg" data-col="conjunto">Conjunto <span class="sort-icon" id="sort-reg-conjunto">↕</span></th>
+                            <th class="sortable" data-type="reg" data-col="mae">MAE <span class="sort-icon" id="sort-reg-mae">↕</span></th>
+                            <th class="sortable" data-type="reg" data-col="rmse">RMSE <span class="sort-icon" id="sort-reg-rmse">↕</span></th>
+                            <th class="sortable" data-type="reg" data-col="r2">R² <span class="sort-icon" id="sort-reg-r2">↕</span></th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -170,8 +161,6 @@
             </div>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
-
 </html>
