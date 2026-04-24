@@ -13,7 +13,7 @@ function jumpToExecution(time) {
     }
 }
 
-let evoChartInst = null, classChartInst = null, regChartInst = null, featChartInst = null;
+let evoChartInst = null, classChartInst = null, regChartInst = null, featChartInst = null, scatterChartInst = null, overfitChartInst = null, aeroCompareChartInst = null;
 
 let sortState = { class: { col: 'auc', asc: false }, reg: { col: 'r2', asc: false } };
 const classImportantParams = ['param_max_depth', 'param_learning_rate', 'param_n_estimators', 'spw', 'param_subsample', 'param_colsample_bytree', 'param_min_child_weight', 'param_gamma', 'param_reg_lambda', 'param_reg_alpha'];
@@ -64,6 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('conjuntoSelect').addEventListener('change', renderDashboard);
     document.getElementById('aeroSelect').addEventListener('change', renderDashboard);
     document.getElementById('targetSelect').addEventListener('change', renderDashboard);
+    document.getElementById('scatterParamSelect').addEventListener('change', renderDashboard);
     document.getElementById('btnPrev').addEventListener('click', () => changeExecution(-1));
     document.getElementById('btnNext').addEventListener('click', () => changeExecution(1));
 
@@ -183,6 +184,9 @@ function renderDashboard() {
     renderScoresAndTables(classData, regData);
     renderBarCharts(classData, regData);
     renderEvolutionChart(filtroConjunto, filtroAero, filtroTarget);
+    renderOverfitChart(filtroAero, filtroTarget);
+    renderAeroCompareChart(filtroConjunto, filtroTarget);
+    renderScatterChart(filtroConjunto, filtroAero, filtroTarget);
     renderAdvancedAnalysis(classData, regData);
     renderLeaderboard();
 }
@@ -251,6 +255,119 @@ function renderBarCharts(classData, regData) {
     });
 }
 
+function renderOverfitChart(fAero, fTarget) {
+    if (overfitChartInst) overfitChartInst.destroy();
+    if (fTarget === 'todos') {
+        const ctx = document.getElementById('overfitChart').getContext('2d');
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        document.getElementById('overfitMetricLabel').innerText = 'Selecione um Target';
+        return;
+    }
+
+    const isBin = [...timestamps].map(t => groupedData[t].classRows.find(r => r.target === fTarget)).filter(x=>x).length > 0;
+    const metric = isBin ? 'auc' : 'r2';
+    document.getElementById('overfitMetricLabel').innerText = metric.toUpperCase();
+
+    const labels = timestamps.map((t, i) => `Lote ${i + 1}`);
+
+    const getAvg = (t, conj) => {
+        const rows = (isBin ? groupedData[t].classRows : groupedData[t].regRows).filter(r => r.conjunto.includes(conj) && (fAero === 'todos' || r.aerodromo === fAero) && r.target === fTarget);
+        if(!rows.length) return null;
+        return rows.reduce((s, r) => s + Math.max(0, r[metric] || 0), 0) / rows.length;
+    };
+
+    const dataTreino = timestamps.map(t => getAvg(t, 'treino'));
+    const dataVal = timestamps.map(t => getAvg(t, 'val'));
+    const dataTeste = timestamps.map(t => getAvg(t, 'teste'));
+
+    const ctx = document.getElementById('overfitChart').getContext('2d');
+    overfitChartInst = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Treino', data: dataTreino, borderColor: '#a855f7', backgroundColor: '#a855f7', tension: 0.3 },
+                { label: 'Validação', data: dataVal, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.3 },
+                { label: 'Teste', data: dataTeste, borderColor: '#22c55e', backgroundColor: '#22c55e', tension: 0.3 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }
+    });
+}
+
+function renderAeroCompareChart(fConjunto, fTarget) {
+    if (aeroCompareChartInst) aeroCompareChartInst.destroy();
+    
+    const t = timestamps[currentIndex];
+    const isBin = groupedData[t].classRows.filter(r => r.target === fTarget).length > 0;
+    const isReg = groupedData[t].regRows.filter(r => r.target === fTarget).length > 0;
+    const dataSource = isBin ? groupedData[t].classRows : (isReg ? groupedData[t].regRows : []);
+    const metric = isBin ? 'auc' : 'r2';
+    
+    if(fTarget === 'todos' || !dataSource.length) {
+        const ctx = document.getElementById('aeroCompareChart').getContext('2d');
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        return;
+    }
+    
+    let aeroMap = {};
+    dataSource.filter(r => r.target === fTarget && (fConjunto === 'todos' ? r.conjunto !== 'treino' : r.conjunto.includes(fConjunto))).forEach(r => {
+        if(!aeroMap[r.aerodromo]) aeroMap[r.aerodromo] = [];
+        aeroMap[r.aerodromo].push(r[metric]);
+    });
+    
+    let labels = Object.keys(aeroMap).sort();
+    let dataPoints = labels.map(a => aeroMap[a].reduce((s,v)=>s+v,0)/aeroMap[a].length);
+
+    const ctx = document.getElementById('aeroCompareChart').getContext('2d');
+    aeroCompareChartInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{ label: `Média ${metric.toUpperCase()} (${fConjunto})`, data: dataPoints, backgroundColor: '#0ea5e9', borderRadius: 4 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+    });
+}
+
+function renderScatterChart(fConjunto, fAero, fTarget) {
+    if (scatterChartInst) scatterChartInst.destroy();
+    const selParam = document.getElementById('scatterParamSelect').value;
+    
+    let points = [];
+    const isBin = fTarget==='todos' ? true : [...timestamps].map(t => groupedData[t].classRows.find(r => r.target === fTarget)).filter(x=>x).length > 0;
+    const metric = isBin ? 'auc' : 'r2';
+
+    timestamps.forEach(t => {
+        const dataSource = isBin ? groupedData[t].classRows : groupedData[t].regRows;
+        dataSource.filter(r => (fAero === 'todos' || r.aerodromo === fAero) && (fTarget === 'todos' || r.target === fTarget) && (fConjunto === 'todos' ? r.conjunto !== 'treino' : r.conjunto.includes(fConjunto))).forEach(r => {
+            if(r[selParam] !== undefined && r[selParam] !== null && r[metric] !== undefined && r[metric] !== null) {
+                points.push({x: Number(r[selParam]), y: Number(r[metric])});
+            }
+        });
+    });
+
+    const ctx = document.getElementById('scatterChart').getContext('2d');
+    scatterChartInst = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: `${metric.toUpperCase()} vs ${selParam.replace('param_','')}`,
+                data: points,
+                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                borderColor: '#3b82f6'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                x: { title: { display: true, text: selParam.replace('param_','') } },
+                y: { title: { display: true, text: metric.toUpperCase() } }
+            }
+        }
+    });
+}
+
 function renderAdvancedAnalysis(classRows, regRows) {
     const cmContainer = document.getElementById('cmContainer');
     
@@ -284,6 +401,17 @@ function renderAdvancedAnalysis(classRows, regRows) {
             hasCM = true;
         }
     });
+
+    const bRateCont = document.getElementById('baseRateContainer');
+    if (hasCM) {
+        let total = tp + fp + fn + tn;
+        let realPos = tp + fn;
+        let baseRate = total > 0 ? ((realPos / total) * 100).toFixed(1) : 0;
+        bRateCont.style.display = 'block';
+        bRateCont.innerHTML = `<span class="badge badge-info" style="font-size: 0.7rem;">Base Média: ${baseRate}% (${realPos}/${total})</span>`;
+    } else {
+        bRateCont.style.display = 'none';
+    }
 
     if (hasCM) {
         cmContainer.innerHTML = `

@@ -37,12 +37,19 @@
         </div>
 
         <div id="mainDashboard" style="display: none;">
-            <div class="dashboard-grid">
+            <div class="grid-2">
                 <div class="card">
                     <div class="card-header">
-                        <h2 class="card-title">Histórico Geral da Modelagem (Médias)</h2>
+                        <h2 class="card-title">Monitoramento de Hiperparâmetros (Geral)</h2>
                     </div>
-                    <div class="evolution-wrapper"><canvas id="evolutionChart"></canvas></div>
+                    <div class="chart-wrapper"><canvas id="evolutionChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Diagnóstico de Overfitting</h2>
+                        <span class="badge badge-info" id="overfitMetricLabel">Métrica</span>
+                    </div>
+                    <div class="chart-wrapper"><canvas id="overfitChart"></canvas></div>
                 </div>
             </div>
 
@@ -114,7 +121,10 @@
 
             <div class="grid-2">
                 <div class="card">
-                    <div class="card-header"><h2 class="card-title">Matriz de Confusão</h2></div>
+                    <div class="card-header" style="align-items: center; display: flex; justify-content: space-between;">
+                        <h2 class="card-title">Matriz de Confusão</h2>
+                        <div id="baseRateContainer" style="display:none; margin-left: 10px;"></div>
+                    </div>
                     <div id="cmContainer" class="chart-wrapper" style="display:flex;">
                         <div class="empty-state">Dados insuficientes...</div>
                     </div>
@@ -127,7 +137,29 @@
                     </div>
                 </div>
             </div>
-
+            <div class="grid-2" style="margin-top: 10px;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Comparativo por Aeródromo</h2>
+                    </div>
+                    <div class="chart-wrapper"><canvas id="aeroCompareChart"></canvas></div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header" style="align-items: center; display: flex; justify-content: space-between;">
+                        <h2 class="card-title">Impacto dos Hiperparâmetros</h2>
+                        <select id="scatterParamSelect" class="form-select" style="max-width: 170px; padding: 0.3rem 2rem 0.3rem 1rem; font-size: 0.75rem; background-position: right 0.3rem center; background-size: 1rem;">
+                            <option value="param_max_depth">Max Depth</option>
+                            <option value="param_learning_rate">Learning Rate</option>
+                            <option value="param_n_estimators">N Estimators</option>
+                            <option value="param_subsample">Subsample</option>
+                            <option value="param_colsample_bytree">Colsample Bytree</option>
+                            <option value="param_gamma">Gamma</option>
+                        </select>
+                    </div>
+                    <div class="chart-wrapper"><canvas id="scatterChart"></canvas></div>
+                </div>
+            </div>
             <div class="dashboard-grid" style="margin-top: 10px;">
                 <div class="card leaderboard-card">
                     <div class="card-header">
